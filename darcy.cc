@@ -17,6 +17,7 @@
 #include <deal.II/lac/full_matrix.h>
 #include <deal.II/lac/sparse_direct.h>
 #include <deal.II/numerics/data_out.h>
+#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <stdlib.h>
 
@@ -247,12 +248,6 @@ void DarcyProblem<dim>::setup_dofs() {
 
   {
     constraints.clear();
-
-    dealii::FEValuesExtractors::Vector velocities(0);
-    dealii::VectorTools::interpolate_boundary_values(
-        dof_handler, 1, InflowDirichletBoundaryValues<dim>(), constraints,
-        fe.component_mask(velocities));
-
     dealii::VectorTools::compute_no_normal_flux_constraints(dof_handler, 0, {2},
                                                             constraints);
   }
@@ -397,6 +392,13 @@ void DarcyProblem<dim>::assemble_system() {
     constraints.distribute_local_to_global(
         local_matrix, local_rhs, local_dof_indices, system_matrix, system_rhs);
   }
+
+  std::map<dealii::types::global_dof_index, double> boundary_values;
+  dealii::VectorTools::interpolate_boundary_values(
+      dof_handler, 1, InflowDirichletBoundaryValues<dim>(), boundary_values,
+      fe.component_mask(velocities));
+  dealii::MatrixTools::apply_boundary_values(boundary_values, system_matrix,
+                                             solution, system_rhs);
 }
 
 template <int dim>
