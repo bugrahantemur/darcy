@@ -1,0 +1,16 @@
+{
+  "Mesh & geometry parameters":
+  {
+    "Number of refinements": "2"
+  },
+  "Physical constants":
+  {
+    "Dynamic viscosity": "1.81e-7",
+    "Porosity": "0.7",
+    "Permeability": "1.0e-7"
+  },
+  "Output parameters":
+  {
+    "Output filename": "output"
+  }
+}
