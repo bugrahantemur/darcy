@@ -430,7 +430,11 @@ void DarcyProblem<dim>::output_results() const {
                            data_component_interpretation);
   data_out.build_patches();
 
-  std::ofstream output("solution.vtk");
+  prm.enter_subsection("Output parameters");
+  std::string const output_file_name = prm.get("Output filename");
+  prm.leave_subsection();
+
+  std::ofstream output(output_file_name + ".vtk");
   data_out.write_vtk(output);
 }
 
