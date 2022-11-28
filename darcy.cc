@@ -248,8 +248,9 @@ void DarcyProblem<dim>::setup_dofs() {
 
   {
     constraints.clear();
-    dealii::VectorTools::compute_no_normal_flux_constraints(dof_handler, 0, {2},
-                                                            constraints);
+    std::set<dealii::types::boundary_id> no_flux_boundaries{2};
+    dealii::VectorTools::compute_no_normal_flux_constraints(
+        dof_handler, 0, no_flux_boundaries, constraints);
   }
 
   constraints.close();
