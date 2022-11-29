@@ -174,23 +174,22 @@ class ParameterReader : public dealii::Subscriptor {
 };
 
 void ParameterReader::declare_parameters() {
-  prm.enter_subsection("Mesh & geometry parameters");
+  prm.enter_subsection("MeshGeometryParameters");
   {
     prm.declare_entry(
         "Degree", "1", dealii::Patterns::Integer(1, 15),
         "Minimum polynomial degree in the element (polynomial degree varies "
         "between primary variables in Taylor-Hood elements)");
-    prm.declare_entry("Number of refinements", "4",
-                      dealii::Patterns::Integer(0),
+    prm.declare_entry("NumberOfRefinements", "4", dealii::Patterns::Integer(0),
                       "Number of global mesh refinement steps applied to the "
                       "initial course grid");
   }
   prm.leave_subsection();
 
-  prm.enter_subsection("Physical constants");
+  prm.enter_subsection("PhysicalConstants");
   {
-    prm.declare_entry("Dynamic viscosity", "0.0", dealii::Patterns::Double(0.),
-                      "Dynamic viscosity (mu)");
+    prm.declare_entry("DynamicViscosity", "0.0", dealii::Patterns::Double(0.),
+                      "DynamicViscosity (mu)");
 
     prm.declare_entry("Porosity", "0.0", dealii::Patterns::Double(0., 1.),
                       "Porosity (phi)");
@@ -200,9 +199,9 @@ void ParameterReader::declare_parameters() {
   }
   prm.leave_subsection();
 
-  prm.enter_subsection("Output parameters");
+  prm.enter_subsection("OutputParameters");
   {
-    prm.declare_entry("Output filename", "solution",
+    prm.declare_entry("OutputFileName", "solution",
                       dealii::Patterns::Anything(),
                       "Name of the output file (without extension)");
   }
@@ -219,9 +218,9 @@ template <int dim>
 void DarcyProblem<dim>::make_grid() {
   dealii::GridGenerator::hyper_cube(triangulation);
 
-  prm.enter_subsection("Mesh & geometry parameters");
+  prm.enter_subsection("MeshGeometryParameters");
   unsigned int const n_global_refinements =
-      prm.get_integer("Number of refinements");
+      prm.get_integer("NumberOfRefinements");
   prm.leave_subsection();
 
   triangulation.refine_global(n_global_refinements);
@@ -334,9 +333,9 @@ void DarcyProblem<dim>::assemble_system() {
   dealii::FEValuesExtractors::Vector const velocities(0);
   dealii::FEValuesExtractors::Scalar const pressure(dim);
 
-  prm.enter_subsection("Physical constants");
+  prm.enter_subsection("PhysicalConstants");
   double const porosity = prm.get_double("Porosity");
-  double const dyn_viscosity = prm.get_double("Dynamic viscosity");
+  double const dyn_viscosity = prm.get_double("DynamicViscosity");
   double const permeability = prm.get_double("Permeability");
   prm.leave_subsection();
 
@@ -438,8 +437,8 @@ void DarcyProblem<dim>::output_results() const {
                            data_component_interpretation);
   data_out.build_patches();
 
-  prm.enter_subsection("Output parameters");
-  std::string const output_file_name = prm.get("Output filename");
+  prm.enter_subsection("OutputParameters");
+  std::string const output_file_name = prm.get("OutputFileName");
   prm.leave_subsection();
 
   std::ofstream output(output_file_name + ".vtk");
