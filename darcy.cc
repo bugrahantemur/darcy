@@ -131,10 +131,14 @@ void RightHandSide<dim>::value_list(
 template <int dim>
 class KInverse : public dealii::TensorFunction<2, dim> {
  public:
-  KInverse() : dealii::TensorFunction<2, dim>() {}
+  KInverse(double const permeability)
+      : dealii::TensorFunction<2, dim>(), permeability(permeability){};
 
   void value_list(std::vector<dealii::Point<dim>> const &points,
                   std::vector<dealii::Tensor<2, dim>> &values) const override;
+
+ private:
+  double const permeability;
 };
 
 template <int dim>
@@ -144,7 +148,7 @@ void KInverse<dim>::value_list(
   (void)points;
   AssertDimension(points.size(), values.size());
 
-  double const K_inv = 1. / 1.0e-7;
+  double const K_inv = 1. / permeability;
 
   for (auto &value : values)
     value = K_inv * dealii::unit_symmetric_tensor<dim>();
@@ -322,11 +326,9 @@ void DarcyProblem<dim>::assemble_system() {
       n_dofs_per_cell);
 
   RightHandSide<dim> const right_hand_side;
-  KInverse<dim> const k_inverse;
   PressureNeumannBoundaryValues<dim> pressure_boundary;
 
   std::vector<dealii::Tensor<1, dim>> rhs_values(n_q_points);
-  std::vector<dealii::Tensor<2, dim>> k_inverse_values(n_q_points);
   std::vector<double> pressure_boundary_values(n_face_q_points);
 
   dealii::FEValuesExtractors::Vector const velocities(0);
@@ -335,8 +337,13 @@ void DarcyProblem<dim>::assemble_system() {
   prm.enter_subsection("Physical constants");
   double const porosity = prm.get_double("Porosity");
   double const dyn_viscosity = prm.get_double("Dynamic viscosity");
-  double const porosity_x_dyn_visc = porosity * dyn_viscosity;
+  double const permeability = prm.get_double("Permeability");
   prm.leave_subsection();
+
+  KInverse<dim> const k_inverse(permeability);
+  std::vector<dealii::Tensor<2, dim>> k_inverse_values(n_q_points);
+
+  double const porosity_x_dyn_visc = porosity * dyn_viscosity;
 
   std::vector<double> div_phi_u(n_dofs_per_cell);
   std::vector<dealii::Tensor<1, dim>> phi_u(n_dofs_per_cell);
