@@ -279,10 +279,10 @@ void DarcyProblem<dim>::setup_dofs() {
   dealii::types::global_dof_index const n_u = dofs_per_block[0];
   dealii::types::global_dof_index const n_p = dofs_per_block[1];
 
-  std::cout << "  Number of active cells: " << triangulation.n_active_cells()
-            << std::endl
-            << "  Number of degrees of freedom: " << dof_handler.n_dofs()
-            << " (" << n_u << "+" << n_p << ")" << std::endl;
+  std::cout << "    - Number of active cells: "
+            << triangulation.n_active_cells() << std::endl
+            << "    - Number of degrees of freedom: " << dof_handler.n_dofs()
+            << " (" << n_u << " + " << n_p << ")" << std::endl;
 
   {
     dealii::BlockDynamicSparsityPattern dsp(dofs_per_block, dofs_per_block);
@@ -481,7 +481,7 @@ void DarcyProblem<dim>::solve_schur() {
   // Solve the first equation
   P = op_S_inv * schur_rhs;
 
-  std::cout << "    " << solver_control_S.last_step()
+  std::cout << "    - " << solver_control_S.last_step()
             << " CG Schur complement iterations to obtain convergence."
             << std::endl;
 
@@ -523,12 +523,14 @@ template <int dim>
 void DarcyProblem<dim>::run() {
   dealii::Timer timer;
 
+  std::cout << std::fixed << std::setprecision(2) << std::setfill('0');
   std::cout << "  Generating grid... "
             << "\n";
   timer.restart();
   make_grid();
   timer.stop();
-  std::cout << "  ...done (" << timer.cpu_time() << " s)"
+  std::cout << "  ...done (CPU Time: " << timer.cpu_time()
+            << " s, Wall Time: " << timer.wall_time() << " s)"
             << "\n\n";
 
   std::cout << "  Setting up DoFs... "
@@ -536,7 +538,8 @@ void DarcyProblem<dim>::run() {
   timer.restart();
   setup_dofs();
   timer.stop();
-  std::cout << "  ...done (" << timer.cpu_time() << " s)"
+  std::cout << "  ...done (CPU Time: " << timer.cpu_time()
+            << " s, Wall Time: " << timer.wall_time() << " s)"
             << "\n\n";
 
   std::cout << "  Assembling... "
@@ -544,7 +547,8 @@ void DarcyProblem<dim>::run() {
   timer.restart();
   assemble_system();
   timer.stop();
-  std::cout << "  ...done (" << timer.cpu_time() << " s)"
+  std::cout << "  ...done (CPU Time: " << timer.cpu_time()
+            << " s, Wall Time: " << timer.wall_time() << " s)"
             << "\n\n";
 
   std::cout << "  Solving... "
@@ -552,7 +556,8 @@ void DarcyProblem<dim>::run() {
   timer.restart();
   solve();
   timer.stop();
-  std::cout << "  ...done (" << timer.cpu_time() << " s)"
+  std::cout << "  ...done (CPU Time: " << timer.cpu_time()
+            << " s, Wall Time: " << timer.wall_time() << " s)"
             << "\n\n";
 
   output_results();
