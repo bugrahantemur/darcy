@@ -1,7 +1,11 @@
 {
   "MeshGeometryParameters":
   {
-    "NumberOfRefinements": "2"
+    "NumberOfRefinements": "4"
+  },
+  "SolverParameters":
+  {
+    "UseDirectSolver": "true"
   },
   "PhysicalConstants":
   {

@@ -15,6 +15,10 @@
 #include <deal.II/lac/block_sparse_matrix.h>
 #include <deal.II/lac/block_vector.h>
 #include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/linear_operator.h>
+#include <deal.II/lac/packaged_operation.h>
+#include <deal.II/lac/precondition.h>
+#include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/sparse_direct.h>
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/numerics/matrix_tools.h>
@@ -37,12 +41,15 @@ class DarcyProblem {
   void make_grid();
   void setup_dofs();
   void assemble_system();
-  void solve();
+  void solve() { (use_direct_solver) ? solve_direct() : solve_schur(); }
+  void solve_direct();
+  void solve_schur();
   void output_results() const;
 
   dealii::ParameterHandler &prm;
 
   unsigned int const degree;
+  bool use_direct_solver;
 
   dealii::Triangulation<dim> triangulation;
   dealii::FESystem<dim> fe;
@@ -160,7 +167,11 @@ DarcyProblem<dim>::DarcyProblem(dealii::ParameterHandler &parameter_handler,
     : prm(parameter_handler),
       degree(degree),
       fe(dealii::FE_Q<dim>(degree + 1), dim, dealii::FE_Q<dim>(degree), 1),
-      dof_handler(triangulation) {}
+      dof_handler(triangulation) {
+  prm.enter_subsection("SolverParameters");
+  use_direct_solver = prm.get_bool("UseDirectSolver");
+  prm.leave_subsection();
+}
 
 class ParameterReader : public dealii::Subscriptor {
  public:
@@ -183,6 +194,14 @@ void ParameterReader::declare_parameters() {
     prm.declare_entry("NumberOfRefinements", "4", dealii::Patterns::Integer(0),
                       "Number of global mesh refinement steps applied to the "
                       "initial course grid");
+  }
+  prm.leave_subsection();
+
+  prm.enter_subsection("SolverParameters");
+  {
+    prm.declare_entry("UseDirectSolver", "false", dealii::Patterns::Bool(),
+                      "Use a direct solver instead of the default iterative "
+                      "Schur complement solver");
   }
   prm.leave_subsection();
 
@@ -409,10 +428,69 @@ void DarcyProblem<dim>::assemble_system() {
 }
 
 template <int dim>
-void DarcyProblem<dim>::solve() {
+void DarcyProblem<dim>::solve_direct() {
   dealii::SparseDirectUMFPACK A_direct;
   A_direct.initialize(system_matrix);
   A_direct.vmult(solution, system_rhs);
+}
+
+template <int dim>
+void DarcyProblem<dim>::solve_schur() {
+  auto const &M = system_matrix.block(0, 0);
+  auto const &B = system_matrix.block(1, 0);
+
+  auto const &F = system_rhs.block(0);
+  auto const &G = system_rhs.block(1);
+
+  auto &U = solution.block(0);
+  auto &P = solution.block(1);
+
+  auto const op_M = dealii::linear_operator(M);
+  auto const op_B = dealii::linear_operator(B);
+
+  dealii::ReductionControl reduction_control_M(2000, 1.0e-18, 1.0e-10);
+  dealii::SolverCG<dealii::Vector<double>> solver_M(reduction_control_M);
+
+  dealii::PreconditionJacobi<dealii::SparseMatrix<double>> preconditioner_M;
+  preconditioner_M.initialize(M);
+
+  auto const op_M_inv =
+      dealii::inverse_operator(op_M, solver_M, preconditioner_M);
+
+  // Schur complement
+  auto const op_S = op_B * op_M_inv * dealii::transpose_operator(op_B);
+
+  // Approximate Schur complement
+  auto const op_aS = op_B * dealii::linear_operator(preconditioner_M) *
+                     dealii::transpose_operator(op_B);
+
+  // Preconditioner out of the approximate Schur complement
+  dealii::IterationNumberControl iteration_number_control_aS(30, 1.0e-18);
+  dealii::SolverCG<dealii::Vector<double>> solver_aS(
+      iteration_number_control_aS);
+  auto const preconditioner_S = dealii::inverse_operator(
+      op_aS, solver_aS, dealii::PreconditionIdentity());
+
+  // First Equation
+
+  // RHS
+  auto const schur_rhs = op_B * op_M_inv * F - G;
+
+  // Define solver
+  dealii::SolverControl solver_control_S(2000, 1.0e-12);
+  dealii::SolverCG<dealii::Vector<double>> solver_S(solver_control_S);
+  auto const op_S_inv =
+      dealii::inverse_operator(op_S, solver_S, preconditioner_S);
+
+  // Solve the first equation
+  P = op_S_inv * schur_rhs;
+
+  std::cout << "    " << solver_control_S.last_step()
+            << " CG Schur complement iterations to obtain convergence."
+            << std::endl;
+
+  // Second equation
+  U = op_M_inv * (F - dealii::transpose_operator(op_B) * P);
 }
 
 template <int dim>
