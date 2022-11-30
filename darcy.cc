@@ -187,10 +187,6 @@ class ParameterReader : public dealii::Subscriptor {
 void ParameterReader::declare_parameters() {
   prm.enter_subsection("MeshGeometryParameters");
   {
-    prm.declare_entry(
-        "Degree", "1", dealii::Patterns::Integer(1, 15),
-        "Minimum polynomial degree in the element (polynomial degree varies "
-        "between primary variables in Taylor-Hood elements)");
     prm.declare_entry("NumberOfRefinements", "4", dealii::Patterns::Integer(0),
                       "Number of global mesh refinement steps applied to the "
                       "initial course grid");
